@@ -4,15 +4,20 @@ namespace App\Console\Commands;
 
 use App\Models\WechatArticle;
 use App\Models\WechatArticleAlbum;
+use App\Supports\KDL\KDLAbstract;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Redis;
-use Illuminate\Console\Command;
 
 class SpiderMPArticleTypeNewCommand extends SpiderMPArticleAbstract
 {
     protected $signature = 'spider:mp_article_type_new';
 
     protected $description = 'Command description';
+
+    /**
+     * @var \App\Supports\KDL\KDLAbstract
+     */
+    protected KDLAbstract $KDLAbstract;
 
     private $url = 'https://mp.weixin.qq.com/cgi-bin/appmsg?action=list_ex&begin=%s&count=5&fakeid=Mzg2NTU1NDQwMw==&type=9&query=&token=1921337103&lang=zh_CN&f=json&ajax=1';
 
@@ -22,23 +27,31 @@ class SpiderMPArticleTypeNewCommand extends SpiderMPArticleAbstract
 
     public function handle()
     {
-//        Redis::hset('aaa', 1, 2);
-        $a = Redis::hget('aaa', 1);
-        dd(1, $a);
-        $this->request(0);
+        $this->crawl();
     }
 
-    public function request($begin = 0)
+    public function crawl($begin = 0)
     {
-        dump($begin);
+        dump("抓取微信公众号文章，begin:{$begin}");
+        Redis::set('wechat_mp_begin', $begin);
         $url = sprintf($this->url, $begin);
-        $response = Http::withHeaders($this->header)->get($url)->json();
-//        $response = json_decode($response, true);
-        if (! isset($response['app_msg_list'])) {
-            dd($response, "数据不存在");
+        $request = $this->request($url);
+        if (! $request) {
+            $this->checkRequest($url);
+            $this->request($url);
         }
-        if (count($response['app_msg_list']) == 0) {
-            dd($response, '抓取完成');
+        $this->crawl($begin + 5);
+    }
+
+    public function request(string $url): bool
+    {
+        $response = Http::withHeaders($this->header)->get($url)->json();
+        if (isset($response['base_resp']['ret']) && $response['base_resp']['ret'] == 200013) {
+            return false;
+        }
+        $count = count($response['app_msg_list']);
+        if ($count == 0) {
+            dd('----------', 'finish', '----------');
         }
         foreach ($response['app_msg_list'] as $arr) {
             foreach ($arr['appmsg_album_infos'] ?? [] as $albumInfo) {
@@ -71,7 +84,25 @@ class SpiderMPArticleTypeNewCommand extends SpiderMPArticleAbstract
                 'update_time' => $arr['update_time'],
             ]);
         }
-        sleep(5);
-        $this->request($begin + 5);
+        dump("单次抓取成功，总数：{$count}");
+
+        return true;
+    }
+
+    public function checkRequest(string $url): bool
+    {
+        $i = 0;
+        while (true) {
+            $i++;
+            dump("重试次数:{$i}");
+            $response = Http::withHeaders($this->header)->get($url)->json();
+            if (isset($response['app_msg_list'])) {
+                dump("重试成功");
+                break;
+            }
+            sleep(300);
+        }
+
+        return true;
     }
 }
