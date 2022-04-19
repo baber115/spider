@@ -27,7 +27,11 @@ class SpiderMPArticleTypeNewCommand extends SpiderMPArticleAbstract
 
     public function handle()
     {
-        $this->crawl();
+        $begin = Redis::get('wechat_mp_begin');
+        if (! $begin) {
+            $begin = 0;
+        }
+        $this->crawl($begin);
     }
 
     public function crawl($begin = 0)
@@ -96,11 +100,12 @@ class SpiderMPArticleTypeNewCommand extends SpiderMPArticleAbstract
             $i++;
             dump("重试次数:{$i}");
             $response = Http::withHeaders($this->header)->get($url)->json();
-            if (isset($response['app_msg_list'])) {
+            if (! isset($response['app_msg_list'])) {
+                sleep(300);
+            } else {
                 dump("重试成功");
                 break;
             }
-            sleep(300);
         }
 
         return true;
