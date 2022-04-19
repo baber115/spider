@@ -34,6 +34,10 @@ class SpiderMPArticleTypeNewCommand extends SpiderMPArticleAbstract
         $this->crawl($begin);
     }
 
+    /**
+     * @param $begin
+     * @return void
+     */
     public function crawl($begin = 0)
     {
         dump("抓取微信公众号文章，begin:{$begin}");
@@ -47,6 +51,10 @@ class SpiderMPArticleTypeNewCommand extends SpiderMPArticleAbstract
         $this->crawl($begin + 5);
     }
 
+    /**
+     * @param  string  $url
+     * @return bool
+     */
     public function request(string $url): bool
     {
         $response = Http::withHeaders($this->header)->get($url)->json();
@@ -93,6 +101,10 @@ class SpiderMPArticleTypeNewCommand extends SpiderMPArticleAbstract
         return true;
     }
 
+    /**
+     * @param  string  $url
+     * @return bool
+     */
     public function checkRequest(string $url): bool
     {
         $i = 0;
