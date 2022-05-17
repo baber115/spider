@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\wechat_mp;
 
 use App\Models\ArticleType;
 use Illuminate\Console\Command;
